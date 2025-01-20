@@ -10,9 +10,11 @@ import ARKit
 import SceneKit
 
 class ViewController: UIViewController {
-
+    
+    
+    @IBOutlet weak var faceActionLabel: UILabel!
+    
     let sceneView = ARSCNView(frame: UIScreen.main.bounds)
-    let noseOptions = ["👃", "🐽", "💧", " "]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,9 +25,10 @@ class ViewController: UIViewController {
         configuration.isLightEstimationEnabled = true
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         
+        self.view.bringSubviewToFront(faceActionLabel)
     }
-
-
+    
+    
 }
 
 extension ViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
@@ -52,14 +55,47 @@ extension ViewController: ARSCNViewDelegate {
         guard let faceGeometry = node.geometry as? ARSCNFaceGeometry else { return }
         faceGeometry.update(from: faceAnchor.geometry)
         
+        addMaskImageto(node: node)
+        
+        DispatchQueue.main.async {
+            self.faceActionDetected(faceAnchor: faceAnchor)
+        }
+    }
+    
+}
+
+extension ViewController {
+    
+    func faceActionDetected(faceAnchor: ARFaceAnchor) {
+        let leftSmileValue = faceAnchor.blendShapes[.mouthSmileLeft] as! CGFloat
+        let rightSmileValue = faceAnchor.blendShapes[.mouthSmileRight] as! CGFloat
+
+        handleSmile(leftValue: leftSmileValue, rightValue: rightSmileValue)
+    }
+    
+    func handleSmile(leftValue: CGFloat, rightValue: CGFloat) {
+        let smileValue = (leftValue + rightValue)/2.0
+        switch smileValue {
+        case _ where smileValue > 0.5:
+            faceActionLabel.text = "😁"
+        case _ where smileValue > 0.2:
+            faceActionLabel.text = "🙂"
+        default:
+            faceActionLabel.text = "😐"
+        }
+    }
+    
+    func addMaskImageto(node: SCNNode) {
+        if node.childNode(withName: "mask", recursively: false) != nil {
+            return
+        }
         let image = UIImage(named: "IMG_1184")
         let maskNode = SCNNode(geometry: SCNPlane(width: 0.2, height: 0.3))
         maskNode.geometry?.firstMaterial?.diffuse.contents = image
         maskNode.position.y = 0.05
-
+        
         maskNode.name = "mask"
-
+        
         node.addChildNode(maskNode)
     }
-
 }
